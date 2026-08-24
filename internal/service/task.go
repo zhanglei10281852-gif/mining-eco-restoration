@@ -56,19 +56,28 @@ func (s TaskService) Transition(ctx context.Context, actor domain.User, id, to s
 		return t, e
 	}
 	now := time.Now()
-	ok, e := s.Tasks.UpdateStatus(ctx, id, t.Status, to, version, now)
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return t, err
+	}
+	ok, e := s.Tasks.UpdateStatusTx(ctx, tx, id, t.Status, to, version, now)
 	if e != nil {
+		_ = tx.Rollback()
 		return t, e
 	}
 	if !ok {
+		_ = tx.Rollback()
 		return t, apperror.ErrConflict
 	}
-	e = s.Tasks.AddEvent(ctx, ids.New("evt"), id, actor.ID, t.Status, to, now)
-	if e != nil {
-		to = t.Status
+	if e = s.Tasks.AddEventTx(ctx, tx, ids.New("evt"), id, actor.ID, t.Status, to, now); e != nil {
+		_ = tx.Rollback()
+		return t, e
+	}
+	if e = tx.Commit(); e != nil {
+		return t, e
 	}
 	t.Status = to
 	t.Version++
 	t.UpdatedAt = now
-	return t, e
+	return t, nil
 }

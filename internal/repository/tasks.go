@@ -41,8 +41,23 @@ func (r Tasks) UpdateStatus(ctx context.Context, id, from, to string, version in
 	n, _ := res.RowsAffected()
 	return n == 1, nil
 }
+func (r Tasks) UpdateStatusTx(ctx context.Context, tx *sql.Tx, id, from, to string, version int64, at time.Time) (bool, error) {
+	res, err := tx.ExecContext(ctx, `UPDATE remediation_tasks SET status=?,version=version+1,updated_at=? WHERE id=? AND status=? AND version=?`, to, at.UTC().Format(time.RFC3339), id, from, version)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
 func (r Tasks) AddEvent(ctx context.Context, eid, tid, actor, from, to string, at time.Time) error {
 	_, err := r.DB.ExecContext(ctx, `INSERT INTO task_events(id,task_id,actor_id,from_status,to_status,created_at) VALUES(?,?,?,?,?,?)`, eid, tid, actor, from, to, at.UTC().Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("record task transition event: %w", err)
+	}
+	return err
+}
+func (r Tasks) AddEventTx(ctx context.Context, tx *sql.Tx, eid, tid, actor, from, to string, at time.Time) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO task_events(id,task_id,actor_id,from_status,to_status,created_at) VALUES(?,?,?,?,?,?)`, eid, tid, actor, from, to, at.UTC().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("record task transition event: %w", err)
 	}

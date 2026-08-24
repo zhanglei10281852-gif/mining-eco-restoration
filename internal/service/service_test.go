@@ -146,3 +146,21 @@ func TestTaskCreateRollbackOnAuditFailure(t *testing.T) {
 		t.Fatalf("task leaked %d", n)
 	}
 }
+func TestTaskTransitionRollbackOnEventFailure(t *testing.T) {
+	f := newFixture(t)
+	p, pl := f.project(t)
+	task, e := f.tasks.Create(context.Background(), f.operator, p.ID, pl.ID, f.operator.ID, "Slope greening", "Seed native grass", "r")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e := f.store.Exec(`DROP TABLE task_events`); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := f.tasks.Transition(context.Background(), f.operator, task.ID, "assigned", task.Version, "r"); e == nil {
+		t.Fatal("event failure ignored")
+	}
+	got, e := f.tasks.Tasks.ByID(context.Background(), task.ID)
+	if e != nil || got.Status != "planned" || got.Version != 1 {
+		t.Fatalf("state changed after failed transition: %v v%d", got.Status, got.Version)
+	}
+}
