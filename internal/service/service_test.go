@@ -146,3 +146,35 @@ func TestTaskCreateRollbackOnAuditFailure(t *testing.T) {
 		t.Fatalf("task leaked %d", n)
 	}
 }
+func TestInspectionRollbackOnAuditFailureKeepsSubmitted(t *testing.T) {
+	f := newFixture(t)
+	p, pl := f.project(t)
+	task, e := f.tasks.Create(context.Background(), f.operator, p.ID, pl.ID, f.operator.ID, "Slope greening", "Seed native grass", "r")
+	if e != nil {
+		t.Fatal(e)
+	}
+	task = progress(t, f, task)
+	if _, e := f.store.Exec(`DROP TABLE audit_logs`); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := f.inspections.Accept(context.Background(), f.inspector, task.ID, "pass", "qualified", 92, "r"); e == nil {
+		t.Fatal("audit failure ignored")
+	}
+	got, e := f.tasks.Tasks.ByID(context.Background(), task.ID)
+	if e != nil || got.Status != "submitted" {
+		t.Fatalf("task not left submitted: %s %v", got.Status, e)
+	}
+	if got.Version != task.Version {
+		t.Fatalf("task version advanced on failure: %d", got.Version)
+	}
+	if n := testsupport.Count(t, f.store, "inspections"); n != 0 {
+		t.Fatalf("inspection leaked %d", n)
+	}
+	if _, e := f.inspections.Accept(context.Background(), f.inspector, task.ID, "pass", "qualified", 92, "r"); e == nil {
+		t.Fatal("retry after audit failure should still be rejected when audit table is unavailable")
+	}
+	got2, e := f.tasks.Tasks.ByID(context.Background(), task.ID)
+	if e != nil || got2.Status != "submitted" || got2.Version != task.Version {
+		t.Fatalf("retry mutated state: status=%s version=%d", got2.Status, got2.Version)
+	}
+}
