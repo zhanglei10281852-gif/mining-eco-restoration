@@ -1,0 +1,1 @@
+-- Canonical migration is embedded from internal/migrations/sql/001_init.sql.
