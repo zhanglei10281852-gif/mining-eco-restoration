@@ -101,6 +101,9 @@ func writeErr(w http.ResponseWriter, r *http.Request, e error) {
 	case errors.Is(e, apperror.ErrConflict):
 		status = 409
 		code = "conflict"
+	case errors.Is(e, apperror.ErrCancelled), errors.Is(e, context.Canceled):
+		status = 499
+		code = "cancelled"
 	}
 	writeJSON(w, status, map[string]any{"code": code, "message": e.Error(), "request_id": middleware.GetRequestID(r.Context())})
 }

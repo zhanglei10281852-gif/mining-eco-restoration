@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"github.com/zhanglei10281852-gif/mining-eco-restoration/internal/apperror"
 	"github.com/zhanglei10281852-gif/mining-eco-restoration/internal/domain"
 	"github.com/zhanglei10281852-gif/mining-eco-restoration/internal/ids"
@@ -19,10 +20,16 @@ func (s SampleService) Record(ctx context.Context, actor domain.User, plot, metr
 		return domain.Sample{}, apperror.ErrInvalid
 	}
 	if _, e := s.Projects.Plot(ctx, plot); e != nil {
+		if errors.Is(e, context.Canceled) {
+			return domain.Sample{}, apperror.ErrCancelled
+		}
 		return domain.Sample{}, apperror.ErrNotFound
 	}
 	x := domain.Sample{ID: ids.New("smp"), PlotID: plot, CollectorID: actor.ID, Metric: metric, Value: value, Unit: unit, CollectedAt: at, CreatedAt: time.Now()}
-	if e := s.Samples.Create(context.Background(), x); e != nil {
+	if e := s.Samples.Create(ctx, x); e != nil {
+		if errors.Is(e, context.Canceled) {
+			return x, apperror.ErrCancelled
+		}
 		return x, e
 	}
 	return x, nil

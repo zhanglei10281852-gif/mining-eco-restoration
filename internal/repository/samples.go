@@ -11,7 +11,7 @@ import (
 type Samples struct{ DB *sql.DB }
 
 func (r Samples) Create(ctx context.Context, s domain.Sample) error {
-	_, e := r.DB.ExecContext(context.Background(), `INSERT INTO monitoring_samples(id,plot_id,collector_id,metric,value,unit,collected_at,created_at) VALUES(?,?,?,?,?,?,?,?)`, s.ID, s.PlotID, s.CollectorID, s.Metric, s.Value, s.Unit, s.CollectedAt.UTC().Format(time.RFC3339), s.CreatedAt.UTC().Format(time.RFC3339))
+	_, e := r.DB.ExecContext(ctx, `INSERT INTO monitoring_samples(id,plot_id,collector_id,metric,value,unit,collected_at,created_at) VALUES(?,?,?,?,?,?,?,?)`, s.ID, s.PlotID, s.CollectorID, s.Metric, s.Value, s.Unit, s.CollectedAt.UTC().Format(time.RFC3339), s.CreatedAt.UTC().Format(time.RFC3339))
 	if e != nil {
 		return fmt.Errorf("record monitoring sample: %w", e)
 	}

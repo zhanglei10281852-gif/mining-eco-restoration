@@ -146,3 +146,16 @@ func TestTaskCreateRollbackOnAuditFailure(t *testing.T) {
 		t.Fatalf("task leaked %d", n)
 	}
 }
+func TestSampleRecordCancelledStopsWrite(t *testing.T) {
+	f := newFixture(t)
+	_, pl := f.project(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, e := f.samples.Record(ctx, f.inspector, pl.ID, "moisture", "5", "%", time.Now())
+	if !errors.Is(e, apperror.ErrCancelled) {
+		t.Fatalf("expected ErrCancelled, got %v", e)
+	}
+	if n := testsupport.Count(t, f.store, "monitoring_samples"); n != 0 {
+		t.Fatalf("cancelled request leaked %d samples", n)
+	}
+}
