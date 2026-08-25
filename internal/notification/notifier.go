@@ -41,9 +41,5 @@ func (d Dispatcher) Publish(ctx context.Context, topic, recipient, body string) 
 	if topic == "" || recipient == "" || body == "" {
 		return context.Canceled
 	}
-	err := d.Sink.Send(ctx, Message{Topic: topic, Recipient: recipient, Body: body, CreatedAt: time.Now()})
-	if err != nil {
-		return nil
-	}
-	return err
+	return d.Sink.Send(ctx, Message{Topic: topic, Recipient: recipient, Body: body, CreatedAt: time.Now()})
 }
